@@ -11,6 +11,7 @@ import {
   calculateFeeShares,
   calculateFeeShareDeductions,
   checkFeeShareCalculation,
+  calculateFeeDeductionHalfEven,
 } from "../src/utils/fee_deduction_calculator.js";
 
 describe("fee_deduction_calculator overflow validation", () => {
@@ -192,6 +193,29 @@ describe("fee_deduction_calculator overflow validation", () => {
         expect(result.code).toBe(ERROR_CODES.INVALID_AMOUNT);
       }
     });
+  });
+
+  describe("calculateFeeDeductionHalfEven numeric outcomes", () => {
+    it.each([
+      { baseAmount: 10_000, feeRateBps: 500, feeAmount: 500n, netAmount: 9_500n },
+      { baseAmount: 12_345, feeRateBps: 333, feeAmount: 411n, netAmount: 11_934n },
+      { baseAmount: 1, feeRateBps: 4_999, feeAmount: 0n, netAmount: 1n },
+      { baseAmount: 1, feeRateBps: 5_001, feeAmount: 1n, netAmount: 0n },
+      { baseAmount: 1, feeRateBps: 5_000, feeAmount: 0n, netAmount: 1n },
+      { baseAmount: 3, feeRateBps: 5_000, feeAmount: 2n, netAmount: 1n },
+      { baseAmount: 0, feeRateBps: 7_500, feeAmount: 0n, netAmount: 0n },
+      { baseAmount: 10_000, feeRateBps: 10_000, feeAmount: 10_000n, netAmount: 0n },
+    ])(
+      "returns the verified withholding and net amount for $baseAmount at $feeRateBps bps",
+      ({ baseAmount, feeRateBps, feeAmount, netAmount }) => {
+        const result = calculateFeeDeductionHalfEven(baseAmount, feeRateBps);
+
+        expect(result).toEqual({ ok: true, feeAmount, netAmount });
+        if (result.ok) {
+          expect(result.feeAmount + result.netAmount).toBe(BigInt(baseAmount));
+        }
+      },
+    );
   });
 
   describe("calculateFeeShares", () => {
